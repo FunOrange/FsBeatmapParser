@@ -287,6 +287,14 @@ type Beatmap(file, repr, cl) =
         let minBeatLengthTimingPoint = bpmTimingPoints |> List.minBy (fun tp -> tp.beatLength)
         60000M / minBeatLengthTimingPoint.beatLength
 
+    member public this.Bpms with get() = 
+        let bpmTimingPoints =
+            (if this.changelist.timingPoints = [] then this.originalFileRepresentation.timingPoints else this.changelist.timingPoints)
+            |> List.filter isTimingPoint
+            |> List.map getTimingPoint
+            |> List.filter (fun tp -> tp.uninherited)
+        bpmTimingPoints |> List.map (fun tp -> 60000M / tp.beatLength)
+
 
         
     (* General and Metadata *)
@@ -385,3 +393,25 @@ type Beatmap(file, repr, cl) =
             | Spinner o -> o.time
             | Hold o -> o.time
             | _ -> 0
+
+    member public this.HitObjectTimes
+        with get() =
+            let hitObjects = this.originalFileRepresentation.hitObjects
+                             |> List.filter (function
+                                             | Comment _ -> false
+                                             | _         -> true)
+                             |> List.filter (function
+                                             | HitCircle o -> true
+                                             | Slider o    -> true
+                                             | Spinner o   -> false
+                                             | Hold o      -> true
+                                             | _           -> false)
+            let hitObjectToStartTime(hitobject) =
+                match hitobject with
+                | HitCircle o -> o.time
+                | Slider o -> o.time
+                | Spinner o -> o.time
+                | Hold o -> o.time
+                | _ -> 0
+            List.map hitObjectToStartTime hitObjects
+
